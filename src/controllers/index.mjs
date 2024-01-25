@@ -1,0 +1,7 @@
+export * from './desviaImpresoras.mjs'
+export * from './desviaIpOriginal.mjs'
+export * from './devuelveEstado.mjs'
+export * from './devuelveTrabajos.mjs'
+export * from './funciones.mjs'
+export * from './pausaImpresora.mjs'
+export * from './reanudaImpresora.mjs'
