@@ -9,8 +9,8 @@ let ip = String
 export const desviarImpresora = (impresoraDesviada, impresoraDestino, server) => {
 
     for (let impresora of impresorasTodas) {
-        if (impresora.impresora === impresoraDestino) {
-            ip = impresora.ip;
+        if (impresora?.impresora === impresoraDestino) {
+            ip = impresora?.ip;
         }
     }
 

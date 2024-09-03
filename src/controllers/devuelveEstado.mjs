@@ -44,13 +44,13 @@ export const estados = (printer, server) => {
 
             for (let impresora of impresorasTodas) {
 
-                if (impresora.impresora === printer && ip[0] === impresora.ip) {
+                if (impresora?.impresora === printer && ip[0] === impresora?.ip) {
 
                     desviada = false;
 
-                } else if (impresora.impresora === printer && ip[0] != impresora.ip) {
+                } else if (impresora?.impresora === printer && ip[0] != impresora?.ip) {
                     desviada = true;
-                    impresoraDesvio = impresorasTodas.find(impresora => impresora.ip === ip[0])
+                    impresoraDesvio = impresorasTodas.find(impresora => impresora?.ip === ip[0])
                 }
             }
 
