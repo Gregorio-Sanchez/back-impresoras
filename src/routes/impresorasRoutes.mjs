@@ -2,7 +2,20 @@
 import logger from '../utils/logger.mjs';
 import { Router, request, response } from 'express';
 import dotenv from 'dotenv';
-import { pausar, reanudar, trabajos, estados, desviarImpresora, desviarImpresoraOriginal } from '../controllers/index.mjs';
+import {
+    pausar,
+    reanudar,
+    trabajos,
+    trabajosDetallados,
+    estados,
+    desviarImpresora,
+    desviarImpresoraOriginal,
+    imprimirPaginaPrueba,
+    cancelarTrabajo,
+    pausarTrabajo,
+    reanudarTrabajo,
+    purgarCola
+} from '../controllers/index.mjs';
 
 let numeroPeticiones = 0;
 
@@ -139,15 +152,123 @@ router.get('/:nombreImpresora/:server/pagPrueba', async (req, res = response) =>
 
     let nombreImpresora = req.params.nombreImpresora;
     let server = req.params.server;
+    let userName = req.kauth.grant.access_token.content?.name || 'Usuario desconocido';
 
     logger.log(
         {
             level: 'mongodb',
-            message: `El usuario ${req.kauth.grant.access_token.content?.name} ha impreso una página de prueba por ${nombreImpresora}`
+            message: `El usuario ${userName} ha impreso una página de prueba por ${nombreImpresora}`
         }
     );
 
-    let request = imprimirPaginaPrueba(nombreImpresora, server)
+    let request = imprimirPaginaPrueba(nombreImpresora, server, userName)
+        .then((response) => res.json(response))
+        .catch((error) => {
+            res.status(500).json({ error: error ? error?.message : "Se ha ido a la puta" });
+        })
+});
+
+// Endpoint para listar trabajos con detalles completos
+router.get('/:nombreImpresora/:server/trabajosDetallados', async (req, res = response) => {
+
+    let nombreImpresora = req.params.nombreImpresora;
+    let server = req.params.server;
+
+    logger.log(
+        {
+            level: 'mongodb',
+            message: `El usuario ${req.kauth.grant.access_token.content?.name} ha solicitado trabajos detallados de ${nombreImpresora}`
+        }
+    );
+
+    let request = trabajosDetallados(nombreImpresora, server)
+        .then((response) => res.json(response))
+        .catch((error) => {
+            res.status(500).json({ error: error ? error?.message : "Se ha ido a la puta" });
+        })
+});
+
+// Endpoint para cancelar un trabajo específico
+router.get('/:nombreImpresora/:server/:jobId/cancelar', async (req, res = response) => {
+
+    let nombreImpresora = req.params.nombreImpresora;
+    let server = req.params.server;
+    let jobId = req.params.jobId;
+    let userName = req.kauth.grant.access_token.content?.name || 'Usuario desconocido';
+
+    logger.log(
+        {
+            level: 'mongodb',
+            message: `El usuario ${userName} ha cancelado el trabajo ${jobId} de ${nombreImpresora}`
+        }
+    );
+
+    let request = cancelarTrabajo(nombreImpresora, server, jobId, userName)
+        .then((response) => res.json(response))
+        .catch((error) => {
+            res.status(500).json({ error: error ? error?.message : "Se ha ido a la puta" });
+        })
+});
+
+// Endpoint para pausar un trabajo específico
+router.get('/:nombreImpresora/:server/:jobId/pausarTrabajo', async (req, res = response) => {
+
+    let nombreImpresora = req.params.nombreImpresora;
+    let server = req.params.server;
+    let jobId = req.params.jobId;
+    let userName = req.kauth.grant.access_token.content?.name || 'Usuario desconocido';
+
+    logger.log(
+        {
+            level: 'mongodb',
+            message: `El usuario ${userName} ha pausado el trabajo ${jobId} de ${nombreImpresora}`
+        }
+    );
+
+    let request = pausarTrabajo(nombreImpresora, server, jobId, userName)
+        .then((response) => res.json(response))
+        .catch((error) => {
+            res.status(500).json({ error: error ? error?.message : "Se ha ido a la puta" });
+        })
+});
+
+// Endpoint para reanudar un trabajo específico
+router.get('/:nombreImpresora/:server/:jobId/reanudarTrabajo', async (req, res = response) => {
+
+    let nombreImpresora = req.params.nombreImpresora;
+    let server = req.params.server;
+    let jobId = req.params.jobId;
+    let userName = req.kauth.grant.access_token.content?.name || 'Usuario desconocido';
+
+    logger.log(
+        {
+            level: 'mongodb',
+            message: `El usuario ${userName} ha reanudado el trabajo ${jobId} de ${nombreImpresora}`
+        }
+    );
+
+    let request = reanudarTrabajo(nombreImpresora, server, jobId, userName)
+        .then((response) => res.json(response))
+        .catch((error) => {
+            res.status(500).json({ error: error ? error?.message : "Se ha ido a la puta" });
+        })
+});
+
+// Endpoint para purgar toda la cola de una impresora
+router.get('/:nombreImpresora/:server/purgarCola', async (req, res = response) => {
+
+    let nombreImpresora = req.params.nombreImpresora;
+    let server = req.params.server;
+    let userName = req.kauth.grant.access_token.content?.name || 'Usuario desconocido';
+
+    logger.log(
+        {
+            level: 'mongodb',
+            message: `ADVERTENCIA: El usuario ${userName} ha purgado TODA la cola de ${nombreImpresora}`
+        }
+    );
+
+    let request = purgarCola(nombreImpresora, server, userName)
         .then((response) => res.json(response))
         .catch((error) => {
             res.status(500).json({ error: error ? error?.message : "Se ha ido a la puta" });

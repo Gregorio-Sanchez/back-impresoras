@@ -124,7 +124,8 @@ try {
 		})
 	);
 } catch (error) {
-	logger.error(`Error al registrar en MongoDB: ${error.message}`);
+	console.error(`Error al registrar en MongoDB: ${error.message}`);
+	// logger.error(`Error al registrar en MongoDB: ${error.message}`);
 }
 
 // Create the logger instance that has to be exported
