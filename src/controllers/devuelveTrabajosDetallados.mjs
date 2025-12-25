@@ -45,61 +45,85 @@ export const trabajosDetallados = (printer, server) => {
 function parseJobs(stdout) {
     const jobs = [];
 
-    // Regex para capturar información de trabajos en español
-    // El formato típico es:
-    // Trabajo Id 45
-    // Estado: Imprimiendo
-    // Propietario: DOMINIO\usuario
-    // Páginas: 3
-    // Tamaño: 12345
-    // Enviado el: 23/11/2025 14:30:15
-    // Documento: archivo.pdf
+    // Regex para capturar información de trabajos en español (formato real de Windows)
+    // El formato real es:
+    // Id. de trabajo 267918
+    // Impresora 11ALSAF02
+    // Documento PSCCLNT020/P010000567506_1
+    // Propietario SYSTEM
+    // Páginas imprimidas 1
+    // Tamaño 48
+    // Estado Error asociado al trabajo El trabajo se está imprimiendo
+    // Hora de envío 12/24/2025 14:16:10
+    // Número total de páginas 0
 
-    const regJobId = /(trabajo|job)\s+(id\s+)?(\d+)/gi;
-    const regEstado = /estado[:\s]+(.*?)$/gim;
-    const regPropietario = /propietario[:\s]+(.*?)(\s+notif|$)/gim;
-    const regPaginas = /p[áa]ginas[:\s]+(\d+)/gi;
-    const regTamano = /tama[ñn]o[:\s]+([\d,]+)/gi;
-    const regFecha = /enviado[:\s]+.*?(\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}:\d{2})/gi;
-    const regDocumento = /documento[:\s]+(.*?)$/gim;
-    const regPuerto = /puerto[:\s]+(.*?)$/gim;
+    const regJobId = /Id\.\s+de\s+trabajo\s+(\d+)/i;
+    const regEstado = /Estado\s+(.+?)[\r\n]/i;  // Capturar contenido hasta salto de línea
+    const regPropietario = /Propietario\s+(\S+)/i;
+    const regPaginasImpresas = /P.ginas\s+imprimidas\s+(\d+)/i;
+    const regTotalPaginas = /N.mero\s+total\s+de\s+p.ginas\s+(\d+)/i;
+    const regTamano = /Tama.o\s+(\d+)/i;
+    const regFecha = /Hora\s+de\s+env.o\s+(\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}:\d{2})/i;
+    const regDocumento = /Documento\s+(\S+)/i;
 
-    // Dividir por trabajos (cada trabajo empieza con "Trabajo Id")
-    const jobBlocks = stdout.split(/(?=trabajo\s+id\s+\d+)/gi);
+    // Dividir por trabajos (cada trabajo empieza con "Id. de trabajo")
+    const jobBlocks = stdout.split(/(?=Id\.\s+de\s+trabajo\s+\d+)/i);
 
     for (let block of jobBlocks) {
         if (!block.trim()) continue;
 
-        // Resetear índices de las regex
-        regJobId.lastIndex = 0;
-        regEstado.lastIndex = 0;
-        regPropietario.lastIndex = 0;
-        regPaginas.lastIndex = 0;
-        regTamano.lastIndex = 0;
-        regFecha.lastIndex = 0;
-        regDocumento.lastIndex = 0;
-        regPuerto.lastIndex = 0;
+        // Normalizar saltos de línea para que las regex funcionen mejor
+        const normalizedBlock = block.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-        const jobIdMatch = regJobId.exec(block);
+        const jobIdMatch = normalizedBlock.match(regJobId);
         if (!jobIdMatch) continue;
 
-        const estadoMatch = regEstado.exec(block);
-        const propietarioMatch = regPropietario.exec(block);
-        const paginasMatch = regPaginas.exec(block);
-        const tamanoMatch = regTamano.exec(block);
-        const fechaMatch = regFecha.exec(block);
-        const documentoMatch = regDocumento.exec(block);
-        const puertoMatch = regPuerto.exec(block);
+        const estadoMatch = normalizedBlock.match(regEstado);
+        const propietarioMatch = normalizedBlock.match(regPropietario);
+        const paginasImpresasMatch = normalizedBlock.match(regPaginasImpresas);
+        const totalPaginasMatch = normalizedBlock.match(regTotalPaginas);
+        const tamanoMatch = normalizedBlock.match(regTamano);
+        const fechaMatch = normalizedBlock.match(regFecha);
+        const documentoMatch = normalizedBlock.match(regDocumento);
+
+        // Intentar obtener el número de páginas (preferir "Número total de páginas", sino "Páginas imprimidas")
+        let paginas = 0;
+        if (totalPaginasMatch && totalPaginasMatch[1]) {
+            paginas = parseInt(totalPaginasMatch[1]);
+        } else if (paginasImpresasMatch && paginasImpresasMatch[1]) {
+            paginas = parseInt(paginasImpresasMatch[1]);
+        }
+
+        // Convertir tamaño de bytes a MB
+        let tamanoMB = "0 MB";
+        if (tamanoMatch && tamanoMatch[1]) {
+            const bytes = parseInt(tamanoMatch[1]);
+            const mb = (bytes / (1024 * 1024)).toFixed(2);
+            tamanoMB = `${mb} MB`;
+        }
+
+        // Limpiar el estado - si está vacío usar "En cola"
+        let estadoLimpio = "En cola";
+        if (estadoMatch && estadoMatch[1]) {
+            const estadoTexto = estadoMatch[1].trim();
+            // Verificar que no esté vacío y no contenga "Hora de env"
+            if (estadoTexto &&
+                estadoTexto.length > 0 &&
+                !estadoTexto.toLowerCase().includes('hora de env') &&
+                !estadoTexto.includes('¡')) {  // Detectar caracteres raros del encoding
+                estadoLimpio = estadoTexto;
+            }
+        }
 
         const job = {
-            jobId: parseInt(jobIdMatch[3]),
-            estado: estadoMatch ? estadoMatch[1].trim() : "Desconocido",
-            propietario: propietarioMatch ? propietarioMatch[1].trim() : "Desconocido",
-            paginas: paginasMatch ? parseInt(paginasMatch[1]) : 0,
-            tamano: tamanoMatch ? tamanoMatch[1].trim() : "0",
+            jobId: parseInt(jobIdMatch[1]),
+            estado: estadoLimpio.replace(/\s{2,}/g, ' '),  // Limpiar espacios múltiples
+            propietario: propietarioMatch ? propietarioMatch[1].trim().split(/\s+/)[0] : "Desconocido",
+            paginas: paginas,
+            tamano: tamanoMB,
             fechaEnvio: fechaMatch ? fechaMatch[1].trim() : null,
             documento: documentoMatch ? documentoMatch[1].trim() : "Sin nombre",
-            puerto: puertoMatch ? puertoMatch[1].trim() : null
+            puerto: null
         };
 
         jobs.push(job);

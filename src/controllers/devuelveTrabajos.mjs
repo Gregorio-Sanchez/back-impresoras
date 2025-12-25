@@ -1,12 +1,14 @@
 import { exec } from 'child_process';
 import logger from '../utils/logger.mjs';
-const regexNumImp = /\d+$/g;
 const regexError = /error/gi;
-// const regFechaPrimerTrabajo = /^(hora|time).*?$/gim;
 const regFechaPrimerTrabajo = /(\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2})/;
 let fechaPrimerTrabajo = "";
 const regId = /(trabajo|id).(\d+)/i;
 let idPrimerTrabajo = 1;
+// Regex para capturar el número total de trabajos desde la línea final del output
+const regexNumeroTotalTrabajos = /N[úu]mero de trabajos de impresi[óo]n enumerados\s+(\d+)/i;
+// Regex alternativa para contar manualmente (cada trabajo empieza con "Id. de trabajo")
+const regexContarTrabajos = /Id\.\s+de\s+trabajo\s+\d+/gi;
 
 export const trabajos = (printer, server) => {
 
@@ -21,8 +23,19 @@ export const trabajos = (printer, server) => {
                 reject(error);
             };
 
-            //result es el array que tiene los trabajos en cola cuando la impresora es llamada
-            const result = stdout.replace(/\r\n/g, '').match(regexNumImp);
+            // Primero intentamos obtener el número desde la línea final "Número de trabajos de impresión enumerados X"
+            let numeroTrabajos = 0;
+            const matchNumeroTotal = stdout.match(regexNumeroTotalTrabajos);
+
+            if (matchNumeroTotal && matchNumeroTotal[1]) {
+                // Si encontramos la línea con el total, usamos ese número
+                numeroTrabajos = parseInt(matchNumeroTotal[1]);
+            } else {
+                // Si no, contamos manualmente las ocurrencias de "Id. de trabajo"
+                const trabajosEncontrados = stdout.match(regexContarTrabajos);
+                numeroTrabajos = trabajosEncontrados ? trabajosEncontrados.length : 0;
+            }
+
             fechaPrimerTrabajo = stdout.match(regFechaPrimerTrabajo);
             idPrimerTrabajo = stdout.match(regId);
 
@@ -43,10 +56,10 @@ export const trabajos = (printer, server) => {
             resolve(
                 {
                     impresora: printer,
-                    valor: result !== null ? (result[0] !== null ? result[0] : "E") : "E",
+                    valor: numeroTrabajos.toString(),
                     error,
-                    fechaPrimerTrabajo: fechaPrimerTrabajo[0],
-                    idUltimoTrabajo: idPrimerTrabajo[2],
+                    fechaPrimerTrabajo: fechaPrimerTrabajo ? fechaPrimerTrabajo[0] : null,
+                    idUltimoTrabajo: idPrimerTrabajo ? idPrimerTrabajo[2] : null,
                     ok: true
                 }
             );
