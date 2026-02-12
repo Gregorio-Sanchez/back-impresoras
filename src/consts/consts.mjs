@@ -80,7 +80,10 @@ export const impresorasTodas = [
         impresora: "03ALAV102",
         ip: "172.30.30.249"
     },
-
+    {
+        impresora: "03ALGVO01",
+        ip: "172.30.30.239"
+    },
     {
         impresora: "04COGER01",
         ip: "172.30.133.68"
